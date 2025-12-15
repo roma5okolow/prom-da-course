@@ -1,0 +1,7 @@
+fastapi
+uvicorn
+torch
+prometheus_client
+pydantic
+nltk
+torchvision
