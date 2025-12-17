@@ -3,7 +3,6 @@ from pydantic import BaseModel
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from contextlib import asynccontextmanager
-import torch
 import logging
 from prometheus_client import Counter, Histogram, generate_latest
 from fastapi.middleware.cors import CORSMiddleware
@@ -30,26 +29,24 @@ class InputText(BaseModel):
 
 # Глобальная переменная для модели
 _model = None
+_model_metadata = None
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    global _model
+    global _model, _model_metadata
     
     # ИНИЦИАЛИЗАЦИЯ ПРИ СТАРТЕ
     logger.info("🚀 Starting application initialization...")
     
     try:
         # Импортируем здесь, чтобы избежать ранней загрузки
-        from model import NERClassifier
+        from model_runtime import ONNXNERModel
         
         logger.info("📥 Loading NER model...")
-        _model = NERClassifier()
-        _model.load_state_dict(torch.load('model_state_dict.pt', map_location='cpu'))
+        _model = ONNXNERModel("ner_model.onnx")
+        _model_metadata = _model.metadata
         logger.info("✅ Model loaded successfully!")
         
-        # Проверяем что модель работает
-        test_result = _model.predict("тестовый текст")
-        logger.info(f"🧪 Test inference completed, result shape: {len(test_result)}")
         
     except Exception as e:
         logger.error(f"❌ Failed to load model: {e}")
@@ -119,6 +116,20 @@ async def forward(text: InputText):
             status_code=403,
             content={"message": "модель не смогла обработать данные"}
         )
+    
+@app.get("/metadata")
+def metadata():
+    global _model_metadata
+    if _model_metadata is None:
+        return JSONResponse(
+            status_code=500,
+            content={"message": "model not loaded"}
+        )
+
+    return {
+        "model_format": "onnx",
+        "metadata": _model_metadata
+    }
 
 @app.get("/metrics")
 def metrics():
