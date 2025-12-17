@@ -1,7 +1,8 @@
 fastapi
 uvicorn
-torch
 prometheus_client
 pydantic
 nltk
-torchvision
+onnxruntime
+onnx
+numpy
