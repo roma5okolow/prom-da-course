@@ -9,7 +9,6 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response
 import time
 
-# Настройка логгирования
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
@@ -27,7 +26,6 @@ REQUEST_LATENCY = Histogram(
 class InputText(BaseModel):
     text: str
 
-# Глобальная переменная для модели
 _model = None
 _model_metadata = None
 
@@ -35,15 +33,13 @@ _model_metadata = None
 async def lifespan(app: FastAPI):
     global _model, _model_metadata
     
-    # ИНИЦИАЛИЗАЦИЯ ПРИ СТАРТЕ
     logger.info("🚀 Starting application initialization...")
     
     try:
-        # Импортируем здесь, чтобы избежать ранней загрузки
         from model_runtime import ONNXNERModel
         
         logger.info("📥 Loading NER model...")
-        _model = ONNXNERModel("ner_model.onnx")
+        _model = ONNXNERModel("data/ner_model.onnx")
         _model_metadata = _model.metadata
         logger.info("✅ Model loaded successfully!")
         
@@ -53,15 +49,12 @@ async def lifespan(app: FastAPI):
         _model = None
         raise
     
-    # Приложение запускается
     yield
     
-    # ОЧИСТКА ПРИ ЗАВЕРШЕНИИ
     logger.info("🛑 Shutting down application...")
     _model = None
     logger.info("✅ Cleanup completed")
 
-# Создаем приложение с lifespan менеджером
 app = FastAPI(lifespan=lifespan)
 
 app.add_middleware(

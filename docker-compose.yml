@@ -9,7 +9,9 @@ services:
   frontend:
     build: ./frontend
     ports:
-      - "8080:80"
+      - "8501:8501"
+    depends_on:
+      - backend
 
   prometheus:
     image: prom/prometheus

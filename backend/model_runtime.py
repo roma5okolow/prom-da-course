@@ -1,28 +1,42 @@
 import onnxruntime as ort
-from tokenizer import Tokenizer
+import numpy as np
 import json
+from tokenizer import Tokenizer
 
 class ONNXNERModel:
-    def __init__(self, onnx_path):
-        self.session = ort.InferenceSession(onnx_path)
+    def __init__(self, model_path: str):
+        self.session = ort.InferenceSession(model_path, providers=['CPUExecutionProvider'])
+        
         self.tokenizer = Tokenizer()
-
-        with open('idx2tag.json', 'r', encoding='utf-8') as f:
+        
+        with open('data/idx2tag.json', 'r', encoding='utf-8') as f:
             loaded_dict = json.load(f)
             self.idx2tag = {int(k): v for k, v in loaded_dict.items()}
 
+        self.metadata = {}
+        meta_map = self.session.get_modelmeta().custom_metadata_map
+        for key, value in meta_map.items():
+            self.metadata[key] = value
+
     def predict(self, text: str):
-        input_ids = self.tokenizer.encode_batch([text])
-
-        logits = self.session.run(
-            None,
-            {"input_ids": input_ids}
-        )[0]
-
-        preds = logits.argmax(axis=-1)[0]
-        tokens = self.tokenizer.tokenize(text)
-
-        return [
-            (token, self.idx2tag[p])
-            for token, p in zip(tokens, preds)
-        ]
+        input_ids = self.tokenizer.encode(text, max_length=128)
+        input_ids = input_ids[None, ...]
+        
+        onnx_inputs = {self.session.get_inputs()[0].name: input_ids}
+        onnx_outputs = self.session.run(None, onnx_inputs)
+        
+        logits = onnx_outputs[0]
+        pred_ids = np.argmax(logits, axis=-1).flatten()
+        
+        raw_tokens = self.tokenizer.tokenize(text)
+        result = []
+        
+        for idx_in_pred, token in enumerate(raw_tokens):
+            if idx_in_pred < len(pred_ids):
+                tag_id = pred_ids[idx_in_pred]
+                result.append({
+                    "token": token,
+                    "tag": self.idx2tag.get(tag_id, "O")
+                })
+                
+        return result
