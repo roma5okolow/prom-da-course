@@ -1,0 +1,18 @@
+[flake8]
+max-line-length = 120
+
+exclude = 
+    .git,
+    __pycache__,
+    build,
+    dist,
+    venv,
+    .ipynb_checkpoints
+
+# Ignore specific errors:
+# E203: whitespace before ':' (incompatible with black formatter)
+# W503: line break before binary operator
+ignore = E203, W503
+
+# Max complexity for functions (Cyclomatic Complexity)
+max-complexity = 10
